@@ -10,6 +10,7 @@ public class EnemyController : MonoBehaviour, ITakeDamage
     [SerializeField] protected GameObject model;
     [SerializeField] protected GameObject destroyVfx;
     [SerializeField] protected GameObject warningObj;
+    [SerializeField] protected Collider2D boxCol;
     [SerializeField] protected float moveSpeed;
     public EnemyType EnemyType => enemyType;
 
@@ -40,6 +41,7 @@ public class EnemyController : MonoBehaviour, ITakeDamage
     public void ToggleModel(bool isActive)
     {
         model.SetActive(isActive);
+        boxCol.enabled = isActive;
     }
 
     private void Update()
@@ -76,6 +78,17 @@ public class EnemyController : MonoBehaviour, ITakeDamage
     private void ShowVfx()
     {
         StartCoroutine(CorShowVfx());
+    }
+
+    public void OnTriggerEnter2D(Collider2D collider)
+    {
+        if (collider.CompareTag("Player"))
+        {
+            if (collider.TryGetComponent<PlayerController>(out var Player))
+            {
+                Player.TakeDamage();
+            }
+        }
     }
 
     private IEnumerator CorShowVfx()

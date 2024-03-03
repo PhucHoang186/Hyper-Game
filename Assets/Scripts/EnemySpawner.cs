@@ -21,6 +21,22 @@ public class EnemySpawner : MonoBehaviour
     private PlayerController player;
     private int currentEnemyLoopCount;
 
+    private void Start()
+    {
+        EnemyController.ON_ENEMY_DESTROY += OnEnenyDestroy;
+    }
+
+    private void OnDestroy()
+    {
+        EnemyController.ON_ENEMY_DESTROY -= OnEnenyDestroy;
+    }
+
+    private void OnEnenyDestroy(EnemyController enemy)
+    {
+        DestroyEnemy(enemy, 2f);
+        CheckSpawnEnemy();
+    }
+
     private List<EnemyPoolData> allPools = new();
 
     public void Init(PlayerController player)
@@ -69,7 +85,6 @@ public class EnemySpawner : MonoBehaviour
             yield return new WaitForSeconds(2f);
             currentEnemyLoopCount = 0;
             SpawnEnemy();
-            Debug.LogError("Spawn Enemy");
         }
     }
 

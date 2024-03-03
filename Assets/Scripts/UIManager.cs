@@ -5,6 +5,8 @@ using UnityEngine;
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance;
+    [SerializeField] ScorePanelUI scorePanel;
+    [SerializeField] HeartPanelUI heartPanel;
 
     private void Awake()
     {
@@ -20,10 +22,18 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    [SerializeField] ScorePanelUI scorePanel;
+    public void UpdateHeart()
+    {
+        heartPanel.UpdateHeart();
+    }
 
     public void UpdateScore(int score)
     {
         scorePanel.UpdateScore(score);
+    }
+
+    public void SetUpHearts(int heartAmount)
+    {
+        heartPanel.SetUpHearts(heartAmount);
     }
 }

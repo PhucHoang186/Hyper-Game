@@ -17,5 +17,5 @@ MonoBehaviour:
   roughness: 1
   fadeIn: 0.1
   fadeOut: 0.1
-  positionInfluence: {x: 2, y: 2, z: 0}
+  positionInfluence: {x: 3, y: 3, z: 0}
   rotationInfluence: {x: 0, y: 0, z: 0}

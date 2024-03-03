@@ -1,4 +1,3 @@
-
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -6,8 +5,20 @@ using UnityEngine;
 
 public enum AnimationName
 {
+    Idle,
     StartJump,
     Land,
+    Hit,
+    Destroy,
+}
+
+public enum PlayerState
+{
+    Idle,
+    Attack,
+    Move,
+    Hit,
+    Lose,
 }
 
 public class PlayerController : MonoBehaviour, ITakeDamage
@@ -17,6 +28,7 @@ public class PlayerController : MonoBehaviour, ITakeDamage
     [SerializeField] Transform attackRangeGfx;
     [SerializeField] Transform landPoint;
     [SerializeField] SpriteRenderer diceFace;
+    [SerializeField] PlayerHeartHandle heartHandle;
     [SerializeField] float maxSize;
     [SerializeField] float attackTime;
     [SerializeField] float attackRange;
@@ -29,16 +41,16 @@ public class PlayerController : MonoBehaviour, ITakeDamage
     private Vector2 desPos;
     private Vector2 startPos;
     private InputData inputData;
-    private bool isattacking;
-    private float moveTime;
     private Transform minBorder;
     private Transform maxBorder;
+    private PlayerState currentPlayerState;
+    private float moveTime;
+    private float currentInvincibleTime;
 
     void Start()
     {
         anim = GetComponent<Animator>();
         inputData = new();
-        SetRadiusRange();
         Land();
     }
 
@@ -48,46 +60,98 @@ public class PlayerController : MonoBehaviour, ITakeDamage
         this.maxBorder = maxPoint;
     }
 
+    private void OnChangeState(PlayerState newState)
+    {
+        if (currentPlayerState == newState)
+            return;
+        currentPlayerState = newState;
+
+        switch (newState)
+        {
+            case PlayerState.Idle:
+                PLayAnim(AnimationName.Idle);
+                break;
+            case PlayerState.Move:
+            case PlayerState.Attack:
+                break;
+            case PlayerState.Hit:
+                PlayHitAnim();
+                break;
+            case PlayerState.Lose:
+                OnPlayerDestroy();
+                break;
+        }
+    }
+
+    private bool CheckState(PlayerState state)
+    {
+        return currentPlayerState == state;
+    }
+
     void Update()
     {
         GetInput();
+        UpdateInvincibleTime();
         Attack();
+        if (IsAttackState())
+            return;
         Move();
         Rotate();
     }
 
-    private void Attack()
+    private void UpdateInvincibleTime()
     {
-        if (inputData.isattack && !isattacking)
-        {
-            Startattack();
-        }
-
-        if (isattacking)
-        {
-            if (moveTime <= attackTime)
-                Attacking();
-            else
-                Land();
-        }
+        if (currentInvincibleTime > 0)
+            currentInvincibleTime -= Time.deltaTime;
     }
 
-    private void Startattack()
+    private bool CheckInvincible()
     {
+        return currentInvincibleTime > 0;
+    }
+
+    private void SetInvincible(float invincibleTime)
+    {
+        currentInvincibleTime = invincibleTime;
+    }
+
+    private void Attack()
+    {
+        bool isattack = IsAttackState();
+
+        if (inputData.isattack && !isattack)
+            StartAttack();
+
+        if (!isattack)
+            return;
+
+        if (moveTime <= attackTime)
+            Attacking();
+        else
+            Land();
+    }
+
+    private void StartAttack()
+    {
+        OnChangeState(PlayerState.Attack);
         boxCollider.enabled = false;
-        isattacking = true;
         moveTime = 0f;
-        startPos = transform.position;
-        desPos = CalculateDesPosition(mainCam.ScreenToWorldPoint(Input.mousePosition), attackRadius);
-        landPoint.position = desPos;
+        SetUpAttackPositions();
         ToggleLandPoint(true);
         ToggleAttackRange(false);
         PLayAnim(AnimationName.StartJump, 0.1f);
     }
 
+    private void SetUpAttackPositions()
+    {
+        startPos = transform.position;
+        desPos = CalculateDesPosition(mainCam.ScreenToWorldPoint(Input.mousePosition), attackRadius);
+        landPoint.position = desPos;
+    }
+
     private void Land()
     {
-  
+        boxCollider.enabled = true;
         CalculateNewRange();
         SetRadiusRange();
         ToggleLandPoint(false);
@@ -95,23 +159,24 @@ public class PlayerController : MonoBehaviour, ITakeDamage
         CheckAttackRange();
         PLayAnim(AnimationName.Land, 0.1f);
         CameraController.Instance?.ShakeCamera();
-        boxCollider.enabled = true;
-        isattacking = false;
+        OnChangeState(PlayerState.Idle);
+        SetInvincible(0.5f);
     }
 
     private void CheckAttackRange()
     {
         Collider2D[] cols = Physics2D.OverlapCircleAll(transform.position, attackRange);
-        if (cols.Length > 0)
+        if (cols == null || cols.Length == 0)
+            return;
+
+        foreach (var col in cols)
         {
-            foreach (var col in cols)
+            if (col.gameObject == this.gameObject)
+                continue;
+
+            if (col.TryGetComponent<ITakeDamage>(out var enemy))
             {
-                if (col.gameObject == this.gameObject)
-                    continue;
-                if (col.TryGetComponent<ITakeDamage>(out var enemy))
-                {
-                    enemy.TakeDamage();
-                }
+                enemy.TakeDamage();
             }
         }
     }
@@ -134,17 +199,13 @@ public class PlayerController : MonoBehaviour, ITakeDamage
 
     private void Rotate()
     {
-        if (isattacking)
-            return;
-
         float angle = Mathf.Atan2(inputData.rotateVec.y, inputData.rotateVec.x) * Mathf.Rad2Deg - 90f;
         model.rotation = Quaternion.Lerp(model.rotation, Quaternion.AngleAxis(angle, Vector3.forward), Time.deltaTime * rotateSpeed);
     }
 
     private void Move()
     {
-        if (isattacking)
-            return;
+        OnChangeState(PlayerState.Move);
         transform.position = Vector2.Lerp(transform.position, (Vector2)transform.position + inputData.moveVec * moveSpeed, Time.deltaTime);
         transform.position = ClampMovement(transform.position);
     }
@@ -154,7 +215,6 @@ public class PlayerController : MonoBehaviour, ITakeDamage
         int dice = Random.Range(0, sprites.Length);
         diceFace.sprite = sprites[dice];
         attackRadius = dice + 1.5f;
-
     }
 
     private void GetInput()
@@ -186,7 +246,6 @@ public class PlayerController : MonoBehaviour, ITakeDamage
         attackRangeGfx.gameObject.SetActive(isActive);
     }
 
-
     public Vector2 ClampMovement(Vector2 playerPosition)
     {
         Vector2 newPosition = playerPosition;
@@ -197,15 +256,40 @@ public class PlayerController : MonoBehaviour, ITakeDamage
 
     public void TakeDamage()
     {
-        Debug.LogError("Hit");
+        if (CheckInvincible())
+            return;
+        OnChangeState(heartHandle.TakeDamage() ? PlayerState.Lose : PlayerState.Hit);
     }
 
-    public void OnTriggerEnter2D(Collider2D collider)
+    private void PlayHitAnim()
     {
-        if (collider.CompareTag("Enemy") && !isattacking)
-        {
-            TakeDamage();
-        }
+        StartCoroutine(CorPlayHitAnim());
+    }
+
+    private IEnumerator CorPlayHitAnim()
+    {
+        if (CheckInvincible())
+            yield break;
+        CameraController.Instance.ShakeCamera();
+        SetInvincible(2f);
+        PLayAnim(AnimationName.Hit, 0f);
+        yield return new WaitForSeconds(2f);
+        OnChangeState(PlayerState.Idle);
+    }
+
+    private bool IsAttackState()
+    {
+        return CheckState(PlayerState.Attack);
+    }
+
+    public int GetMaxHeart()
+    {
+        return heartHandle.maxHeart;
+    }
+
+    private void OnPlayerDestroy()
+    {
+        PLayAnim(AnimationName.Destroy);
     }
 }
 
