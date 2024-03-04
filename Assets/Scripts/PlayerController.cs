@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public enum AnimationName
@@ -90,11 +89,16 @@ public class PlayerController : MonoBehaviour, ITakeDamage
 
     void Update()
     {
+        if (CheckState(PlayerState.Lose))
+            return;
+
         GetInput();
         UpdateInvincibleTime();
         Attack();
+
         if (IsAttackState())
             return;
+
         Move();
         Rotate();
     }
@@ -133,12 +137,11 @@ public class PlayerController : MonoBehaviour, ITakeDamage
 
     private void StartAttack()
     {
-        OnChangeState(PlayerState.Attack);
-        boxCollider.enabled = false;
         moveTime = 0f;
+        OnChangeState(PlayerState.Attack);
         SetUpAttackPositions();
-        ToggleLandPoint(true);
-        ToggleAttackRange(false);
+        ToggleBoxCollider(false);
+        ToggleAttack(false);
         PLayAnim(AnimationName.StartJump, 0.1f);
     }
 
@@ -151,16 +154,21 @@ public class PlayerController : MonoBehaviour, ITakeDamage
 
     private void Land()
     {
-        boxCollider.enabled = true;
+        ToggleBoxCollider(true);
         CalculateNewRange();
         SetRadiusRange();
-        ToggleLandPoint(false);
-        ToggleAttackRange(true);
+        ToggleAttack(true);
         CheckAttackRange();
         PLayAnim(AnimationName.Land, 0.1f);
         CameraController.Instance?.ShakeCamera();
         OnChangeState(PlayerState.Idle);
         SetInvincible(0.5f);
+    }
+
+    private void ToggleAttack(bool isActive)
+    {
+        ToggleAttackRange(isActive);
+        ToggleLandPoint(!isActive);
     }
 
     private void CheckAttackRange()
@@ -289,7 +297,14 @@ public class PlayerController : MonoBehaviour, ITakeDamage
 
     private void OnPlayerDestroy()
     {
+        ToggleAttackRange(false);
+        ToggleBoxCollider(false);
         PLayAnim(AnimationName.Destroy);
+    }
+
+    private void ToggleBoxCollider(bool isActive)
+    {
+        boxCollider.enabled = isActive;
     }
 }
 

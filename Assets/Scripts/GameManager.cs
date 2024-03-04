@@ -40,9 +40,11 @@ public class GameManager : MonoBehaviour
     private void OnPlayerHit(bool isLose)
     {
         UIManager.Instance.UpdateHeart();
+        if (isLose)
+            OnChangeState(GameState.GameOver);
     }
 
-    private void OnChangeState(GameState newState)
+    public void OnChangeState(GameState newState)
     {
         if (currentGameState == newState)
             return;
@@ -53,14 +55,19 @@ public class GameManager : MonoBehaviour
             case GameState.Gameplay:
                 break;
             case GameState.GameOver:
-
+                Endgame();
                 break;
         }
     }
 
     private void Endgame()
     {
-        // UIManager.Instance.
+        StartCoroutine(CorEndGame());
     }
 
+    private IEnumerator CorEndGame()
+    {
+        yield return new WaitForSeconds(3f);
+        UIManager.Instance.ShowEndScreen(scoreManger.CurrentScore, scoreManger.MaxScore);
+    }
 }

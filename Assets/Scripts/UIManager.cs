@@ -7,6 +7,7 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance;
     [SerializeField] ScorePanelUI scorePanel;
     [SerializeField] HeartPanelUI heartPanel;
+    [SerializeField] EndScreenPanelUI endScreenPanel;
 
     private void Awake()
     {
@@ -35,5 +36,11 @@ public class UIManager : MonoBehaviour
     public void SetUpHearts(int heartAmount)
     {
         heartPanel.SetUpHearts(heartAmount);
+    }
+
+    public void ShowEndScreen(int score, int maxScore)
+    {
+        endScreenPanel.Init(score, maxScore);
+        endScreenPanel.TogglePanel(true);
     }
 }
